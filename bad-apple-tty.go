@@ -454,8 +454,8 @@ func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
 		for x := 0; x < width; x++ {
 
 			// Determine the color to print based on the value of the pixel
-			top := 255 - pixels[y*2][x]
-			bottom := 255 - pixels[y*2+1][x]
+			top := pixels[y*2][x]
+			bottom := pixels[y*2+1][x]
 
 			// foreground determines the top half of the block
 			if x == 0 || last_top != top {
