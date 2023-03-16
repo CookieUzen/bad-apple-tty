@@ -26,8 +26,32 @@ func main() {
 	fps := 30
 	interval := time.Second / time.Duration(fps)
 
-	// loop through every image in the folder
-	for _, file := range images {
+	// create a buffer for the first image to get the size
+	image, err := os.Open(images[0])
+	if err != nil {
+		panic(err)
+	}
+
+	// Import the images
+	lastImage, height, width, err := importFrame(image)
+	if err != nil {
+		panic(err)
+	}
+
+	// Quantize the images
+	lastImage = quantize(lastImage, height, width, 170)
+
+	// Print the images to the terminal using half printFullBlocks
+	printHalfBlocks(lastImage, height, width)
+
+	// loop through the rest of the image in the folder
+	for i, file := range images {
+		// Skip the first image
+		if i == 0 {
+			continue
+		}
+
+		// Start the timer
 		start := time.Now()
 
 		// Reset the cursor
@@ -56,10 +80,12 @@ func main() {
 
 		fmt.Println("Quantize: ", time.Since(start))
 
-		// Print the image to the terminal using half blocks
-		printHalfBlocks(pixels, height, width)
+		// Print the image difference to the terminal
+		printHalfBlocksDiff(pixels, height, width, lastImage)
 
 		fmt.Println("Print: ", time.Since(start))
+
+		lastImage = pixels
 		
 		// Sleep for the remainder of the frame
 		elapsed := time.Since(start)
@@ -214,3 +240,50 @@ func printHalfBlocks(pixels [][]uint8, height int, width int) {
 	}
 }
 
+// Print out only the pixels that changed using half blocks
+func printHalfBlocksDiff(pixels [][]uint8, height int, width int, lastPixels [][]uint8) {
+	for y := 0; y < height/2; y++ {
+		for x := 0; x < width; x++ {
+			// if both pixels are black
+			if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 0 {
+				if lastPixels[y*2][x] == 0 && lastPixels[y*2+1][x] == 0 {
+					fmt.Print("\033[1C")
+				} else {
+					fmt.Print("█")
+				}
+				continue
+			}
+
+			// if both pixels are white
+			if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 1 {
+				if lastPixels[y*2][x] == 1 && lastPixels[y*2+1][x] == 1 {
+					fmt.Print("\033[1C")
+				} else {
+					fmt.Print(" ")
+				}
+				continue
+			}
+
+			// if the top pixel is black and the bottom is white
+			if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 1 {
+				if lastPixels[y*2][x] == 0 && lastPixels[y*2+1][x] == 1 {
+					fmt.Print("\033[1C")
+				} else {
+					fmt.Print("▀")
+				}
+				continue
+			}
+
+			// if the top pixel is white and the bottom is black
+			if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 0 {
+				if lastPixels[y*2][x] == 1 && lastPixels[y*2+1][x] == 0 {
+					fmt.Print("\033[1C")
+				} else {
+					fmt.Print("▄")
+				}
+				continue
+			}
+		}
+		fmt.Println()
+	}
+}
