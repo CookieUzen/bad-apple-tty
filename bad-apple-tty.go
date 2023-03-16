@@ -28,15 +28,15 @@ func main() {
 	fps := 30
 	interval := time.Second / time.Duration(fps)
 
+	// hide cursor
+	fmt.Print("\033[?25l")
+
 	// loop through every image in the folder
 	for _, file := range images {
 		start := time.Now()
 
-		// hide cursor
-		fmt.Print("\033[?25l")
-
 		// Reset the cursor
-		fmt.Println("\033[0;0H")
+		fmt.Println("\033[H")
 
 		// Open the image
 		image, err := os.Open(file)
@@ -44,37 +44,30 @@ func main() {
 			panic(err)
 		}
 
-		fmt.Println("Open: ", time.Since(start))
-
 		// Import the image
 		pixels, height, width, err := importFrame(image)
 		if err != nil {
 			panic(err)
 		}
 
-		fmt.Println("Import: ", time.Since(start))
-
-		// Quantize the image
-		// pixels = quantize(pixels, height, width, 128)
-
-		// Print the image to the terminal using half blocks
-		// printHalfBlocks(pixels, height, width)
 		printHalfBlocksColor(pixels, height, width)
-		// fmt.Println(pixels, height, width)
-
-		fmt.Println("Print: ", time.Since(start))
 		
 		// Sleep for the remainder of the frame
 		elapsed := time.Since(start)
 
+		// Print the frame rate
+		fmt.Println("Theoretical FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+
 		if elapsed < interval {
 			time.Sleep(interval - elapsed)
 		}
+
+		elapsed = time.Since(start)
+		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
 	}
 
 	// show cursor
 	fmt.Print("\033[?25h")
-
 }
 
 // loads all png in a folder into an array of images
