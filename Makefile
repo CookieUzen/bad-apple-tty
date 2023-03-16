@@ -1,5 +1,5 @@
-run: shrink build
-	./bad-apple-tty images_small
+build: shrink
+	go build -o .
 
 download:
 	yt-dlp -f 18 https://www.youtube.com/watch?v=FtutLA63Cp8
@@ -29,5 +29,5 @@ shrink-big:
 		convert $$i -resize 200x images_small_big/`basename $$i`; \
 	done
 
-build:
-	go build -o .
+run: bad-apple-tty
+	./bad-apple-tty images_small
