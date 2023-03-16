@@ -19,3 +19,12 @@ shrink: extract
 	for i in images/*.png; do \
 		convert $$i -resize 100x images_small/`basename $$i`; \
 	done
+
+shrink-big:
+	if [ ! -d "images_small_big" ]; then \
+		mkdir images_small_big; \
+	fi
+
+	for i in images/*.png; do \
+		convert $$i -resize 200x images_small_big/`basename $$i`; \
+	done

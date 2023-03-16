@@ -14,7 +14,7 @@ import (
 func main() {
 
 	// load a folder
-	images, err := loadFolder("images_small")
+	images, err := loadFolder("images_small_big")
 	if err != nil {
 		panic(err)
 	}
@@ -43,11 +43,18 @@ func main() {
 			panic(err)
 		}
 
+		// Subsample the image
+		pixels, height, width = subsample(pixels, height, width)
+
+		// debug the pixel array
+		// fmt.Println(pixels)
+
+
 		// Quantize the image
 		pixels = quantize(pixels, height, width, 128)
 
 		// Print the image to the terminal using full blocks
-		printFullBlocks(pixels, height, width)
+		printFullBlocks(pixels, height, width, 1)
 		
 		// Sleep for the remainder of the frame
 		elapsed := time.Since(start)
@@ -132,14 +139,38 @@ func quantize(pixels [][]uint8, height int, width int, threshold uint8) [][]uint
 	return output
 }
 
+// subsample an image by a factor of 2 vertically
+func subsample(pixels [][]uint8, height int, width int) ([][]uint8, int, int) {
+
+	// int truncate will make sure array is even
+	height /= 2
+	
+	output := make([][]uint8, height)
+	for i := range output {
+		output[i] = make([]uint8, width)
+	}
+
+	// loop through the pixels and subsample them
+	for y := 0; y < height; y ++ {
+		for x := 0; x < width; x++ {
+			output[y][x] = pixels[y*2][x]/2 + pixels[y*2+1][x]/2
+		}
+	}
+
+	return output, height, width
+}
+
+
 // Print out the image using full blocks, doubling width for perfect pixels
-func printFullBlocks(pixels [][]uint8, height int, width int) {
+func printFullBlocks(pixels [][]uint8, height int, width int, repeat int) {
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			if pixels[y][x] == 0 {
-				fmt.Print("██")
-			} else {
-				fmt.Print("  ")
+			for i := 0; i < repeat; i++ {
+				if pixels[y][x] == 0 {
+					fmt.Print("█")
+				} else {
+					fmt.Print(" ")
+				}
 			}
 		}
 		fmt.Println()
