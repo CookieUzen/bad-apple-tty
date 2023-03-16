@@ -31,6 +31,9 @@ func main() {
 	for _, file := range images {
 		start := time.Now()
 
+		// hide cursor
+		fmt.Print("\033[?25l")
+
 		// Reset the cursor
 		fmt.Println("\033[1;1H")
 
@@ -53,12 +56,12 @@ func main() {
 		fmt.Println("Import: ", time.Since(start))
 
 		// Quantize the image
-		pixels = quantize(pixels, height, width, 128)
-
-		fmt.Println("Quantize: ", time.Since(start))
+		// pixels = quantize(pixels, height, width, 128)
 
 		// Print the image to the terminal using half blocks
-		printHalfBlocks(pixels, height, width)
+		// printHalfBlocks(pixels, height, width)
+		printHalfBlocksColor(pixels, height, width)
+		// fmt.Println(pixels, height, width)
 
 		fmt.Println("Print: ", time.Since(start))
 		
@@ -69,6 +72,9 @@ func main() {
 			time.Sleep(interval - elapsed)
 		}
 	}
+
+	// show cursor
+	fmt.Print("\033[?25h")
 
 }
 
@@ -221,3 +227,50 @@ func printHalfBlocks(pixels [][]uint8, height int, width int) {
 	fmt.Print(string(buffer))
 }
 
+// Print half blocks with a color gradient
+// done using true color escape sequences with grayscale values
+func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
+	// Use a buffer of bytes to store the printed output
+	buffer := make([]byte, 0, width*height/2*(utf8.UTFMax+1 + 20*8 + 100))
+
+	// Define the byte representation of the different block types and characters
+	block := []byte("▀")
+	newline := []byte("\n")
+
+	// Define color escape sequences
+	reset := []byte("\033[0m")
+
+	// Loop through each row of pixels
+	for y := 0; y < height/2; y++ {
+		// Loop through each column of pixels in the current row
+		for x := 0; x < width; x++ {
+
+			// Determine the color to print based on the value of the pixel
+			top := 255 - pixels[y*2][x]
+			bottom := 255 - pixels[y*2+1][x]
+
+			// foreground determines the top half of the block
+			colorCode := fmt.Sprintf("\033[38;2;%d;%d;%dm", top, top, top)
+			var colorPixel []byte = []byte(colorCode)
+
+			// background determines the bottom half of the block
+			backgroundColor := fmt.Sprintf("\033[48;2;%d;%d;%dm", bottom, bottom, bottom)
+			var backgroundPixel []byte = []byte(backgroundColor)
+			
+			buffer = append(buffer, colorPixel...)
+			buffer = append(buffer, backgroundPixel...)
+
+			// Append the block type to the buffer
+			buffer = append(buffer, block...)
+
+		}
+		// Append a newline character after each row of blocks
+		buffer = append(buffer, newline...)
+	}
+
+	// Append the reset escape sequence to the buffer
+	buffer = append(buffer, reset...)
+
+	// Print the contents of the buffer as a string
+	fmt.Print(string(buffer))
+}
