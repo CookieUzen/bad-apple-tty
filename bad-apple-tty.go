@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"image/png"
-	"os"
-	"os/exec"
-	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"time"
+	"unicode/utf8"
 )
 
 func main() {
@@ -52,7 +53,7 @@ func main() {
 		fmt.Println("Import: ", time.Since(start))
 
 		// Quantize the image
-		pixels = quantize(pixels, height, width, 170)
+		pixels = quantize(pixels, height, width, 128)
 
 		fmt.Println("Quantize: ", time.Since(start))
 
@@ -184,33 +185,39 @@ func printFullBlocks(pixels [][]uint8, height int, width int, repeat int) {
 
 // Print out the image using half blocks
 func printHalfBlocks(pixels [][]uint8, height int, width int) {
+	// Use a buffer of bytes to store the printed output
+	buffer := make([]byte, 0, width*height/2*(utf8.UTFMax+1))
+
+	// Define the byte representation of the different block types and characters
+	space := []byte(" ")
+	topBlock := []byte("▀")
+	bottomBlock := []byte("▄")
+	fullBlock := []byte("█")
+	newline := []byte("\n")
+
+	// Loop through each row of pixels
 	for y := 0; y < height/2; y++ {
+		// Loop through each column of pixels in the current row
 		for x := 0; x < width; x++ {
-			// if both pixels are black
+			// Determine the block type to print based on the values of the two pixels
+			var blockType []byte
 			if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 0 {
-				fmt.Print("█")
-				continue
+				blockType = fullBlock
+			} else if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 1 {
+				blockType = space
+			} else if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 1 {
+				blockType = topBlock
+			} else if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 0 {
+				blockType = bottomBlock
 			}
-
-			// if both pixels are white
-			if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 1 {
-				fmt.Print(" ")
-				continue
-			}
-
-			// if the top pixel is black and the bottom is white
-			if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 1 {
-				fmt.Print("▀")
-				continue
-			}
-
-			// if the top pixel is white and the bottom is black
-			if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 0 {
-				fmt.Print("▄")
-				continue
-			}
+			// Append the block type to the buffer
+			buffer = append(buffer, blockType...)
 		}
-		fmt.Println()
+		// Append a newline character after each row of blocks
+		buffer = append(buffer, newline...)
 	}
+
+	// Print the contents of the buffer as a string
+	fmt.Print(string(buffer))
 }
 

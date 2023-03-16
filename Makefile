@@ -1,4 +1,4 @@
-run: shrink
+run: extract
 	go run .
 
 download:
@@ -22,7 +22,7 @@ shrink: extract
 
 shrink-big:
 	if [ ! -d "images_small_big" ]; then \
-		mkdir images_small_big; \
+		mkdir images_small; \
 	fi
 
 	for i in images/*.png; do \
