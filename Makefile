@@ -1,13 +1,21 @@
 run: shrink
-	go run main.go
+	go run .
 
 download:
 	yt-dlp -f 18 https://www.youtube.com/watch?v=FtutLA63Cp8
 
 extract: download
-	mkdir images
-	ffmpeg -i ../【東方】Bad\ Apple!!\ ＰＶ【影絵】\ \[FtutLA63Cp8\].mp4 images/output_frames_%04d.png
+	if [ ! -d "images" ]; then \
+		mkdir images; \
+	fi
+
+	ffmpeg -i 【東方】Bad\ Apple!!\ ＰＶ【影絵】\ \[FtutLA63Cp8\].mp4 images/output_frames_%04d.png
 
 shrink: extract
-	mkdir images_small
-	convert images/output_frames_*.png -resize 100x images/output_frames_%04d.png
+	if [ ! -d "images_small" ]; then \
+		mkdir images_small; \
+	fi
+
+	for i in images/*.png; do \
+		convert $$i -resize 100x images_small/`basename $$i`; \
+	done
