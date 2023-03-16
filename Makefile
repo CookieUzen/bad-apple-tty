@@ -1,5 +1,5 @@
-run: extract
-	go run .
+run: shrink build
+	./bad-apple-tty images_small
 
 download:
 	yt-dlp -f 18 https://www.youtube.com/watch?v=FtutLA63Cp8
@@ -28,3 +28,6 @@ shrink-big:
 	for i in images/*.png; do \
 		convert $$i -resize 200x images_small_big/`basename $$i`; \
 	done
+
+build:
+	go build -o .

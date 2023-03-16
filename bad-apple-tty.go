@@ -11,26 +11,228 @@ import (
 	"time"
 	"unicode/utf8"
 	"strconv"
+	"flag"
+	"strings"
 )
 
-func main() {
+// For parsing command line arguments
+var fps int
+var mode string
+var args []string
+var threshold int
 
+func init() {
+    flag.Usage = func() {
+        fmt.Fprintf(os.Stderr, "Usage: %s [options] [arguments]\n", os.Args[0])
+		fmt.Println("-args: \nFolder for images to load")
+        flag.PrintDefaults()
+    }
+
+	// Parse the command line arguments
+	flag.IntVar(&fps, "f", 30, "fps to run at")
+	flag.StringVar(&mode, "m", "truecolor", "mode to run in (tty, unicode, truecolor")
+	flag.IntVar(&threshold, "t", 128, "threshold for quantization")
+
+	flag.Parse()
+
+	args = flag.Args()
+}
+
+func main() {
+	
+	// Sanity check the arguments
+	if len(args) < 1 {
+		fmt.Println("Wrong number of arguments")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	folder := args[0]
+
+	if fps < 1 {
+		fmt.Println("Invalid fps")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if threshold < 0 || threshold > 255 {
+		fmt.Println("Invalid threshold")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// Clear the screen
 	cmd := exec.Command("clear")
 	cmd.Stdout = os.Stdout
 	cmd.Run()
 
 	// load a folder
-	images, err := loadFolder("images")
+	images, err := loadFolder(folder)
 	if err != nil {
 		panic(err)
 	}
 
-	fps := 30
 	interval := time.Second / time.Duration(fps)
 
 	// hide cursor
 	fmt.Print("\033[?25l")
 
+	// Parse the flags
+	switch mode {
+		case "tty":
+			runTty(images, interval)
+		case "tty-subsample":
+			runTtySubsample(images, interval)
+		case "unicode":
+			runUnicode(images, interval)
+		case "truecolor":
+			runTruecolor(images, interval)
+		default:
+			fmt.Println("Invalid mode")
+			flag.Usage()
+			os.Exit(1)
+	}
+
+
+	// show cursor
+	fmt.Print("\033[?25h")
+}
+
+// Run in tty mode
+func runTty(images []string, interval time.Duration) {
+	// loop through every image in the folder
+	for _, file := range images {
+		start := time.Now()
+
+		// Reset the cursor
+		fmt.Println("\033[H")
+
+		// Open the image
+		image, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+
+		// Import the image
+		pixels, height, width, err := importFrame(image)
+		if err != nil {
+			panic(err)
+		}
+
+		// Quantize the image
+		quantized := quantize(pixels, height, width, uint8(threshold))
+
+		// Print the image
+		printFullBlocks(quantized, height, width, 1)
+		
+		// Sleep for the remainder of the frame
+		elapsed := time.Since(start)
+
+		// Print the frame rate
+		fmt.Println("Theoretical FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+
+		if elapsed < interval {
+			time.Sleep(interval - elapsed)
+		}
+
+		elapsed = time.Since(start)
+		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+	}
+
+}
+
+// Run in tty-subsample mode
+func runTtySubsample(images []string, interval time.Duration) {
+	// loop through every image in the folder
+	for _, file := range images {
+		start := time.Now()
+
+		// Reset the cursor
+		fmt.Println("\033[H")
+
+		// Open the image
+		image, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+
+		// Import the image
+		pixels, height, width, err := importFrame(image)
+		if err != nil {
+			panic(err)
+		}
+
+		// Subsample the image
+		subsampled, height, width := subsample(pixels, height, width)
+
+		// Quantize the image
+		quantized := quantize(subsampled, height, width, uint8(threshold))
+
+		// Print the image
+		printFullBlocks(quantized, height, width, 1)
+		
+		// Sleep for the remainder of the frame
+		elapsed := time.Since(start)
+
+		// Print the frame rate
+		fmt.Println("Theoretical FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+
+		if elapsed < interval {
+			time.Sleep(interval - elapsed)
+		}
+
+		elapsed = time.Since(start)
+		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+	}
+
+}
+
+// Run in unicode mode
+func runUnicode(images []string, interval time.Duration) {
+	// loop through every image in the folder
+	for _, file := range images {
+		start := time.Now()
+
+		// Reset the cursor
+		fmt.Println("\033[H")
+
+		// Open the image
+		image, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+
+		// Import the image
+		pixels, height, width, err := importFrame(image)
+		if err != nil {
+			panic(err)
+		}
+
+		// Quantize the image
+		quantized := quantize(pixels, height, width, uint8(threshold))
+
+		// Print the image
+		printHalfBlocks(quantized, height, width)
+		
+		// Sleep for the remainder of the frame
+		elapsed := time.Since(start)
+
+		// Print the frame rate
+		fmt.Println("Theoretical FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+
+		if elapsed < interval {
+			time.Sleep(interval - elapsed)
+		}
+
+		elapsed = time.Since(start)
+		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+	}
+
+}
+
+
+// Run in truecolor mode
+func runTruecolor(images []string, interval time.Duration) {
 	// loop through every image in the folder
 	for _, file := range images {
 		start := time.Now()
@@ -66,8 +268,6 @@ func main() {
 		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
 	}
 
-	// show cursor
-	fmt.Print("\033[?25h")
 }
 
 // loads all png in a folder into an array of images
@@ -89,8 +289,6 @@ func loadFolder(folder string) ([]string, error) {
 
 	return images, nil
 }
-
-
 
 // Reads an image and returns a 2D array of the pixels in grayscale
 func importFrame(image io.Reader) ([][]uint8, int, int, error) {
@@ -165,20 +363,33 @@ func subsample(pixels [][]uint8, height int, width int) ([][]uint8, int, int) {
 }
 
 
-// Print out the image using full blocks, doubling width for perfect pixels
+// Print out the image using colored spaces, doubling width for perfect pixels
 func printFullBlocks(pixels [][]uint8, height int, width int, repeat int) {
+	// Use a buffer of bytes to store the printed output
+	buffer := make([]byte, 0, width*height*8*2)
+	black := []byte("\033[40m")
+	white := []byte("\033[47m")
+	reset := []byte("\033[0m")
+	newline := []byte("\n")
+
+	// repeat space to make a square (in case we don't subsample)
+	space := []byte(strings.Repeat(" ", repeat))
+
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			for i := 0; i < repeat; i++ {
-				if pixels[y][x] == 0 {
-					fmt.Print("█")
-				} else {
-					fmt.Print("\033[1C")
-				}
+			if pixels[y][x] == 0 {
+				buffer = append(buffer, black...)
+			} else {
+				buffer = append(buffer, white...)
 			}
+			buffer = append(buffer, space...)
 		}
-		fmt.Println()
+
+		buffer = append(buffer, reset...)
+		buffer = append(buffer, newline...)
 	}
+
+	fmt.Print(string(buffer))
 }
 
 // Print out the image using half blocks
