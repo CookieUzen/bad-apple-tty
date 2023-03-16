@@ -447,8 +447,8 @@ func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
 	for y := 0; y < height/2; y++ {
 
 		// cache the first pixel in the row
-		last_top := 255 - pixels[y*2][0]
-		last_bottom := 255 - pixels[y*2+1][0]
+		last_top := pixels[y*2][0]
+		last_bottom := pixels[y*2+1][0]
 
 		// Loop through each column of pixels in the current row
 		for x := 0; x < width; x++ {
