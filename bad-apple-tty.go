@@ -13,8 +13,12 @@ import (
 
 func main() {
 
+	cmd := exec.Command("clear")
+	cmd.Stdout = os.Stdout
+	cmd.Run()
+
 	// load a folder
-	images, err := loadFolder("images_small_big")
+	images, err := loadFolder("images")
 	if err != nil {
 		panic(err)
 	}
@@ -26,10 +30,10 @@ func main() {
 	for _, file := range images {
 		start := time.Now()
 
-		// Clear the terminal
-		cmd := exec.Command("clear")
-		cmd.Stdout = os.Stdout
-		cmd.Run()
+		// Reset the cursor
+		fmt.Println("\033[1;1H")
+
+		fmt.Println("clear: ", time.Since(start))
 
 		// Open the image
 		image, err := os.Open(file)
@@ -37,24 +41,25 @@ func main() {
 			panic(err)
 		}
 
+		fmt.Println("Open: ", time.Since(start))
+
 		// Import the image
 		pixels, height, width, err := importFrame(image)
 		if err != nil {
 			panic(err)
 		}
 
-		// Subsample the image
-		pixels, height, width = subsample(pixels, height, width)
-
-		// debug the pixel array
-		// fmt.Println(pixels)
-
+		fmt.Println("Import: ", time.Since(start))
 
 		// Quantize the image
-		pixels = quantize(pixels, height, width, 128)
+		pixels = quantize(pixels, height, width, 170)
 
-		// Print the image to the terminal using full blocks
-		printFullBlocks(pixels, height, width, 1)
+		fmt.Println("Quantize: ", time.Since(start))
+
+		// Print the image to the terminal using half blocks
+		printHalfBlocks(pixels, height, width)
+
+		fmt.Println("Print: ", time.Since(start))
 		
 		// Sleep for the remainder of the frame
 		elapsed := time.Since(start)
@@ -169,8 +174,40 @@ func printFullBlocks(pixels [][]uint8, height int, width int, repeat int) {
 				if pixels[y][x] == 0 {
 					fmt.Print("█")
 				} else {
-					fmt.Print(" ")
+					fmt.Print("\033[1C")
 				}
+			}
+		}
+		fmt.Println()
+	}
+}
+
+// Print out the image using half blocks
+func printHalfBlocks(pixels [][]uint8, height int, width int) {
+	for y := 0; y < height/2; y++ {
+		for x := 0; x < width; x++ {
+			// if both pixels are black
+			if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 0 {
+				fmt.Print("█")
+				continue
+			}
+
+			// if both pixels are white
+			if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 1 {
+				fmt.Print(" ")
+				continue
+			}
+
+			// if the top pixel is black and the bottom is white
+			if pixels[y*2][x] == 0 && pixels[y*2+1][x] == 1 {
+				fmt.Print("▀")
+				continue
+			}
+
+			// if the top pixel is white and the bottom is black
+			if pixels[y*2][x] == 1 && pixels[y*2+1][x] == 0 {
+				fmt.Print("▄")
+				continue
 			}
 		}
 		fmt.Println()
