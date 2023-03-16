@@ -4,9 +4,11 @@ import (
 	"image/color"
 	"image/png"
 	"os"
+	"os/exec"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"time"
 )
 
 func main() {
@@ -17,23 +19,43 @@ func main() {
 		panic(err)
 	}
 
-	// Open the image
-	image, err := os.Open(images[100])
-	if err != nil {
-		panic(err)
+	fps := 30
+	interval := time.Second / time.Duration(fps)
+
+	// loop through every image in the folder
+	for _, file := range images {
+		start := time.Now()
+
+		// Clear the terminal
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+
+		// Open the image
+		image, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+
+		// Import the image
+		pixels, height, width, err := importFrame(image)
+		if err != nil {
+			panic(err)
+		}
+
+		// Quantize the image
+		pixels = quantize(pixels, height, width, 128)
+
+		// Print the image to the terminal using full blocks
+		printFullBlocks(pixels, height, width)
+		
+		// Sleep for the remainder of the frame
+		elapsed := time.Since(start)
+
+		if elapsed < interval {
+			time.Sleep(interval - elapsed)
+		}
 	}
-
-	// Import the image
-	pixels, height, width, err := importFrame(image)
-	if err != nil {
-		panic(err)
-	}
-
-	// Quantize the image
-	pixels = quantize(pixels, height, width, 128)
-
-	// Print the image to the terminal using full blocks
-	printFullBlocks(pixels, height, width)
 
 }
 
