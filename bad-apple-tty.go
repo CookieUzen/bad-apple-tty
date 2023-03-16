@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"time"
 	"unicode/utf8"
+	"strconv"
 )
 
 func main() {
@@ -35,9 +36,7 @@ func main() {
 		fmt.Print("\033[?25l")
 
 		// Reset the cursor
-		fmt.Println("\033[1;1H")
-
-		fmt.Println("clear: ", time.Since(start))
+		fmt.Println("\033[0;0H")
 
 		// Open the image
 		image, err := os.Open(file)
@@ -242,6 +241,11 @@ func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
 
 	// Loop through each row of pixels
 	for y := 0; y < height/2; y++ {
+
+		// cache the first pixel in the row
+		last_top := 255 - pixels[y*2][0]
+		last_bottom := 255 - pixels[y*2+1][0]
+
 		// Loop through each column of pixels in the current row
 		for x := 0; x < width; x++ {
 
@@ -250,26 +254,51 @@ func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
 			bottom := 255 - pixels[y*2+1][x]
 
 			// foreground determines the top half of the block
-			colorCode := fmt.Sprintf("\033[38;2;%d;%d;%dm", top, top, top)
-			var colorPixel []byte = []byte(colorCode)
+			if x == 0 || last_top != top {
+
+				top_char := []byte(strconv.Itoa(int(top)))
+
+				// Save time by not using fmt.Sprintf
+				// fmt.Sprintf("\033[38;2;%d;%d;%dm", top, top, top)
+				buffer = append(buffer, []byte("\033[38;2;")...)
+				buffer = append(buffer, top_char...)
+				buffer = append(buffer, []byte(";")...)
+				buffer = append(buffer, top_char...)
+				buffer = append(buffer, []byte(";")...)
+				buffer = append(buffer, top_char...)
+				buffer = append(buffer, []byte("m")...)
+
+				last_top = top
+			}
 
 			// background determines the bottom half of the block
-			backgroundColor := fmt.Sprintf("\033[48;2;%d;%d;%dm", bottom, bottom, bottom)
-			var backgroundPixel []byte = []byte(backgroundColor)
-			
-			buffer = append(buffer, colorPixel...)
-			buffer = append(buffer, backgroundPixel...)
+			if x == 0 || last_bottom != bottom {
 
+				bottom_char := []byte(strconv.Itoa(int(bottom)))
+
+				// Save time by not using fmt.Sprintf
+				// fmt.Sprintf("\033[48;2;%d;%d;%dm", bottom, bottom, bottom)
+				buffer = append(buffer, []byte("\033[48;2;")...)
+				buffer = append(buffer, bottom_char...)
+				buffer = append(buffer, []byte(";")...)
+				buffer = append(buffer, bottom_char...)
+				buffer = append(buffer, []byte(";")...)
+				buffer = append(buffer, bottom_char...)
+				buffer = append(buffer, []byte("m")...)
+
+				last_bottom = bottom
+			}
+			
 			// Append the block type to the buffer
 			buffer = append(buffer, block...)
 
 		}
 		// Append a newline character after each row of blocks
 		buffer = append(buffer, newline...)
-	}
 
-	// Append the reset escape sequence to the buffer
-	buffer = append(buffer, reset...)
+		// Append the reset escape sequence to the buffer
+		buffer = append(buffer, reset...)
+	}
 
 	// Print the contents of the buffer as a string
 	fmt.Print(string(buffer))
