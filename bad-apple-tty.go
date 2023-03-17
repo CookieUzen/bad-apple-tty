@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"flag"
 	"strings"
+	"gocv.io/x/gocv"
 )
 
 // For parsing command line arguments
@@ -20,6 +21,7 @@ var fps int
 var mode string
 var args []string
 var threshold int
+var video bool
 
 func init() {
     flag.Usage = func() {
@@ -32,6 +34,7 @@ func init() {
 	flag.IntVar(&fps, "f", 30, "fps to run at")
 	flag.StringVar(&mode, "m", "truecolor", "mode to run in (tty, unicode, truecolor")
 	flag.IntVar(&threshold, "t", 128, "threshold for quantization")
+	flag.BoolVar(&video, "v", false, "inputs from video")
 
 	flag.Parse()
 
@@ -67,15 +70,25 @@ func main() {
 	cmd.Run()
 
 	// load a folder
-	images, err := loadFolder(folder)
-	if err != nil {
-		panic(err)
-	}
+	var images []string
+	var err error
+	var videoIn string
 
 	interval := time.Second / time.Duration(fps)
 
 	// hide cursor
 	fmt.Print("\033[?25l")
+
+	if !video {
+		images, err = loadFolder(folder)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		videoIn = folder
+		runVideo(videoIn, interval)
+	}
+
 
 	// Parse the flags
 	switch mode {
@@ -92,7 +105,6 @@ func main() {
 			flag.Usage()
 			os.Exit(1)
 	}
-
 
 	// show cursor
 	fmt.Print("\033[?25h")
@@ -268,6 +280,85 @@ func runTruecolor(images []string, interval time.Duration) {
 		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
 	}
 
+}
+
+// Run video
+func runVideo(videoIn string, interval time.Duration) {
+	// open the video
+	video, err := gocv.VideoCaptureFile(videoIn)
+	if err != nil {
+		panic(err)
+	}
+	defer video.Close()
+
+	// Loop through each frame in the video
+	for {
+		// start the timer
+		start := time.Now()
+
+		// Reset the cursor
+		fmt.Println("\033[H")
+
+		// read the next frame from the video
+		frame := gocv.NewMat()
+		ok := video.Read(&frame)
+
+		if !ok {
+			// end of video
+			break
+		}
+
+		image, err := frame.ToImage()
+		if err != nil {
+			panic(err)
+		}
+
+		// Get the image bounds
+		bounds := image.Bounds()
+		width, height := bounds.Max.X, bounds.Max.Y
+
+		// Create a 2D array of the pixels
+		r := make([][]uint8, height)
+		g := make([][]uint8, height)
+		b := make([][]uint8, height)
+		a := make([][]uint8, height)
+
+		for i := range r {
+			r[i] = make([]uint8, width)
+			g[i] = make([]uint8, width)
+			b[i] = make([]uint8, width)
+			a[i] = make([]uint8, width)
+		}
+
+		// Iterate over the pixels and calculate the non premultiplied values
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				rgba := color.RGBAModel.Convert(image.At(x, y)).(color.RGBA)
+				r[y][x] = rgba.R
+				g[y][x] = rgba.G
+				b[y][x] = rgba.B
+				a[y][x] = rgba.A
+			}
+		}
+
+		// Print the image
+		printHalfBlocksColor(r, g, b, height, width)
+
+		// Print the frame rate
+		elapsed := time.Since(start)
+		fmt.Println("Theoretical FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+
+		// Sleep for the remainder of the frame
+		if elapsed < interval {
+			time.Sleep(interval - elapsed)
+		}
+
+		elapsed = time.Since(start)
+		fmt.Println("Real FPS: " + strconv.Itoa(int(time.Second / elapsed)))
+
+		// Release the frame
+		frame.Close()
+	}	
 }
 
 // loads all png in a folder into an array of images
