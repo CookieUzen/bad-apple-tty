@@ -247,12 +247,12 @@ func runTruecolor(images []string, interval time.Duration) {
 		}
 
 		// Import the image
-		pixels, height, width, err := importFrame(image)
+		r, g, b, height, width, err := importFrameColor(image)
 		if err != nil {
 			panic(err)
 		}
 
-		printHalfBlocksColor(pixels, height, width)
+		printHalfBlocksColor(r, g, b, height, width)
 		
 		// Sleep for the remainder of the frame
 		elapsed := time.Since(start)
@@ -317,6 +317,46 @@ func importFrame(image io.Reader) ([][]uint8, int, int, error) {
 	}
 
 	return pixels, height, width, nil
+}
+
+// Reads an image and return 3 2D arrays of the pixels in RGB, uint32
+func importFrameColor(image io.Reader) ([][]uint8, [][]uint8, [][]uint8, int, int, error) {
+	
+	// Open the image
+	file, err := png.Decode(image)
+	if err != nil {
+		return nil, nil, nil, 0, 0, err
+	}
+
+	// Get the image bounds
+	bounds := file.Bounds()
+	width, height := bounds.Max.X, bounds.Max.Y
+
+	// Create a 2D array of the pixels
+	r := make([][]uint8, height)
+	g := make([][]uint8, height)
+	b := make([][]uint8, height)
+	a := make([][]uint8, height)
+
+	for i := range r {
+		r[i] = make([]uint8, width)
+		g[i] = make([]uint8, width)
+		b[i] = make([]uint8, width)
+		a[i] = make([]uint8, width)
+	}
+
+	// Iterate over the pixels and calculate the non premultiplied values
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			rgba := color.RGBAModel.Convert(file.At(x, y)).(color.RGBA)
+			r[y][x] = rgba.R
+			g[y][x] = rgba.G
+			b[y][x] = rgba.B
+			a[y][x] = rgba.A
+		}
+	}
+
+	return r, g, b, height, width, nil
 }
 
 // convert an grayscale image to a quantized array
@@ -432,7 +472,7 @@ func printHalfBlocks(pixels [][]uint8, height int, width int) {
 
 // Print half blocks with a color gradient
 // done using true color escape sequences with grayscale values
-func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
+func printHalfBlocksColor(r, g, b [][]uint8, height, width int) {
 	// Use a buffer of bytes to store the printed output
 	buffer := make([]byte, 0, width*height/2*(utf8.UTFMax+1 + 20*8 + 100))
 
@@ -447,50 +487,70 @@ func printHalfBlocksColor(pixels [][]uint8, height int, width int) {
 	for y := 0; y < height/2; y++ {
 
 		// cache the first pixel in the row
-		last_top := pixels[y*2][0]
-		last_bottom := pixels[y*2+1][0]
+		last_top_r := r[y*2][0]
+		last_bottom_r := r[y*2+1][0]
+
+		last_top_g := g[y*2][0]
+		last_bottom_g := g[y*2+1][0]
+
+		last_top_b := b[y*2][0]
+		last_bottom_b := b[y*2+1][0]
 
 		// Loop through each column of pixels in the current row
 		for x := 0; x < width; x++ {
 
 			// Determine the color to print based on the value of the pixel
-			top := pixels[y*2][x]
-			bottom := pixels[y*2+1][x]
+			top_r := r[y*2][x]
+			bottom_r := r[y*2+1][x]
+
+			top_g := g[y*2][x]
+			bottom_g := g[y*2+1][x]
+
+			top_b := b[y*2][x]
+			bottom_b := b[y*2+1][x]
 
 			// foreground determines the top half of the block
-			if x == 0 || last_top != top {
+			if x == 0 || last_top_r != top_r || last_top_g != top_g || last_top_b != top_b {
 
-				top_char := []byte(strconv.Itoa(int(top)))
+				top_r_char := []byte(strconv.Itoa(int(top_r)))
+				top_g_char := []byte(strconv.Itoa(int(top_g)))
+				top_b_char := []byte(strconv.Itoa(int(top_b)))
 
 				// Save time by not using fmt.Sprintf
 				// fmt.Sprintf("\033[38;2;%d;%d;%dm", top, top, top)
 				buffer = append(buffer, []byte("\033[38;2;")...)
-				buffer = append(buffer, top_char...)
+				buffer = append(buffer, top_r_char...)
 				buffer = append(buffer, []byte(";")...)
-				buffer = append(buffer, top_char...)
+				buffer = append(buffer, top_g_char...)
 				buffer = append(buffer, []byte(";")...)
-				buffer = append(buffer, top_char...)
+				buffer = append(buffer, top_b_char...)
 				buffer = append(buffer, []byte("m")...)
 
-				last_top = top
+				last_top_r = top_r
+				last_top_g = top_g
+				last_top_b = top_b
 			}
 
 			// background determines the bottom half of the block
-			if x == 0 || last_bottom != bottom {
+			if x == 0 || last_bottom_r != bottom_r || last_bottom_g != bottom_g || last_bottom_b != bottom_b {
 
-				bottom_char := []byte(strconv.Itoa(int(bottom)))
+				bottom_r_char := []byte(strconv.Itoa(int(bottom_r)))
+				bottom_g_char := []byte(strconv.Itoa(int(bottom_g)))
+				bottom_b_char := []byte(strconv.Itoa(int(bottom_b)))
 
 				// Save time by not using fmt.Sprintf
 				// fmt.Sprintf("\033[48;2;%d;%d;%dm", bottom, bottom, bottom)
 				buffer = append(buffer, []byte("\033[48;2;")...)
-				buffer = append(buffer, bottom_char...)
+				buffer = append(buffer, bottom_r_char...)
 				buffer = append(buffer, []byte(";")...)
-				buffer = append(buffer, bottom_char...)
+				buffer = append(buffer, bottom_g_char...)
 				buffer = append(buffer, []byte(";")...)
-				buffer = append(buffer, bottom_char...)
+				buffer = append(buffer, bottom_b_char...)
 				buffer = append(buffer, []byte("m")...)
 
-				last_bottom = bottom
+				last_bottom_r = bottom_r
+				last_bottom_g = bottom_g
+				last_bottom_b = bottom_b
 			}
 			
 			// Append the block type to the buffer
