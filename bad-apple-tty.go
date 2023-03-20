@@ -11,7 +11,7 @@ import (
 	"flag"
 	"strings"
 	"gocv.io/x/gocv"
-	"github.com/gdamore/tcell/v2"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // For parsing command line arguments
@@ -19,7 +19,6 @@ var fps int
 var mode string
 var args []string
 var threshold int
-var screen tcell.Screen
 
 func init() {
     flag.Usage = func() {
@@ -30,7 +29,7 @@ func init() {
 
 	// Parse the command line arguments
 	flag.IntVar(&fps, "f", 30, "fps to run at")
-	flag.StringVar(&mode, "m", "truecolor", "mode to run in (tty, tty_subsample, unicode, truecolor")
+	flag.StringVar(&mode, "m", "truecolor", "mode to run in (tty, tty_subsample, unicode, truecolor)")
 	flag.IntVar(&threshold, "t", 128, "threshold for quantization")
 
 	flag.Parse()
@@ -39,7 +38,6 @@ func init() {
 }
 
 func main() {
-	
 	// Sanity check the arguments
 	if len(args) < 1 {
 		fmt.Println("Wrong number of arguments")
@@ -47,15 +45,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize the screen
-	screen, err := tcell.NewScreen()
-    if err != nil {
-        panic(err)
-    }
-    if err := screen.Init(); err != nil {
-        panic(err)
-    }
-    defer screen.Fini()
+	// Clear the screen
+	fmt.Print("\033[2J")
 
 	// Run the program
 	videoMode(args[0])
@@ -78,6 +69,9 @@ func videoMode (fileName string) {
 	for {
 		// Start the timer
 		start := time.Now()
+
+		// Reset the cursor position using ansi
+		fmt.Print("\033[0;0H")
 
 		// Create a frame
 		frame := gocv.NewMat()
@@ -111,12 +105,7 @@ func videoMode (fileName string) {
 func processImage (img gocv.Mat) {
 
 	// Convert the Mat to image, scaling to the terminal size
-	width, height := getTerminalSize()
-
-	if width == 0 || height == 0 {
-		fmt.Println("Error getting terminal size")
-		os.Exit(1)
-	}
+	height, width := getTerminalSize()
 
 	switch mode {
 		case "tty":
@@ -133,11 +122,13 @@ func processImage (img gocv.Mat) {
 			height *= 2
 	}
 
-	resized := gocv.NewMat()
-	gocv.Resize(img, &resized, image.Point{X: width, Y: height}, 0, 0, gocv.InterpolationDefault)
+	// Add space for the fps counter
+	height -= 5
+
+	gocv.Resize(img, &img, image.Point{X: width, Y: height}, 0, 0, gocv.InterpolationDefault)
 
 	// Get image from resized Mat
-	frame, err := resized.ToImage()
+	frame, err := img.ToImage()
 	if err != nil {
 		fmt.Println("Error converting image")
 		os.Exit(1)
@@ -207,7 +198,17 @@ func processImage (img gocv.Mat) {
 
 // Gets the length and width of the terminal
 func getTerminalSize() (height, width int) {
-	width, height = screen.Size()
+	width, height, err := terminal.GetSize(0)
+	if err != nil {
+		fmt.Println("Error getting terminal size")
+		os.Exit(1)
+	}
+
+	if width < 1 || height < 1 {
+		fmt.Println("Terminal size is too small: ", width, "x", height)
+		os.Exit(1)
+	}
+
 	return
 }
 
