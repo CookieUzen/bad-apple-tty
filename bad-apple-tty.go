@@ -105,8 +105,22 @@ func videoMode (fileName string) {
 	// Calculate the frame interval
 	interval := time.Second / time.Duration(fps)
 
+	// Start timer for the video
+	videoTimer := time.Now()
+
 	// Loop through the video
-	for {
+	for frameCount := uint64(0); ; frameCount++ {
+		// Check if we're running too slow
+		currentTime := int64(frameCount) * interval.Nanoseconds()
+		if skipFrame && time.Since(videoTimer).Nanoseconds() > currentTime {
+			// We're running too slow, skip frames
+			framesToSkip := int(uint64(time.Since(videoTimer).Nanoseconds() / interval.Nanoseconds()) - frameCount)
+			video.Grab(framesToSkip)
+
+			// Update the frame count
+			frameCount += uint64(framesToSkip)
+		}
+
 		// Start the timer
 		start := time.Now()
 
@@ -134,13 +148,6 @@ func videoMode (fileName string) {
 		// Sleep for the remainder of the frame
 		if elapsed < interval {
 			time.Sleep(interval - elapsed)
-		} else if skipFrame {
-			// We're running too slow, skip frames
-			framesToSkip := fps - int(time.Second / elapsed)
-			fmt.Println("skipping " + strconv.Itoa(framesToSkip) + " frames")
-
-			// Skip frames if we're running too slow
-			video.Grab(framesToSkip)
 		}
 
 		elapsed = time.Since(start)
