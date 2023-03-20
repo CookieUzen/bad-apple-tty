@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"flag"
 	"strings"
+	"os/signal"
 	"gocv.io/x/gocv"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -47,18 +48,46 @@ func main() {
 		os.Exit(1)
 	}
 
+	// In case of a ^C, cleanup
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func(){
+		for sig := range c {
+			// sig is a ^C, handle it
+			if sig.String() == "interrupt" {
+				cleanup()
+				fmt.Println("Interrupted")
+			} else {
+				panic(sig)
+			}
+			
+			os.Exit(1)
+		}
+	}()
+
 	// Clear the screen
 	fmt.Print("\033[2J")
 
 	// Hide the cursor
 	fmt.Print("\033[?25l")
 
-	// Show the cursor
-	defer fmt.Print("\033[?25h")
-
 	// Run the program
 	videoMode(args[0])
 
+	// Cleanup
+	cleanup()
+
+}
+
+func cleanup() {
+	// Show the cursor
+	fmt.Print("\033[?25h")
+
+	// Clear the screen
+	fmt.Print("\033[2J")
+
+	// Reset the cursor position
+	fmt.Print("\033[0;0H")
 }
 
 // Runs the program by reading from a video
