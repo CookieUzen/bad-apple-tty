@@ -19,6 +19,8 @@ var fps int
 var mode string
 var args []string
 var threshold int
+var terminalWidth int
+var terminalHeight int
 
 func init() {
     flag.Usage = func() {
@@ -48,8 +50,15 @@ func main() {
 	// Clear the screen
 	fmt.Print("\033[2J")
 
+	// Hide the cursor
+	fmt.Print("\033[?25l")
+
+	// Show the cursor
+	defer fmt.Print("\033[?25h")
+
 	// Run the program
 	videoMode(args[0])
+
 }
 
 // Runs the program by reading from a video
@@ -107,6 +116,15 @@ func processImage (img gocv.Mat) {
 	// Convert the Mat to image, scaling to the terminal size
 	height, width := getTerminalSize()
 
+	// clear the screen if the terminal size has changed
+	if height != terminalHeight || width != terminalWidth {
+		fmt.Print("\033[2J")
+
+		terminalHeight = height
+		terminalWidth = width
+	}
+
+
 	switch mode {
 		case "tty":
 			// full blocks, we need to use double the width
@@ -124,6 +142,18 @@ func processImage (img gocv.Mat) {
 
 	// Add space for the fps counter
 	height -= 5
+
+	// Only resize if the image is larger than the terminal, keeping proportions
+	if img.Cols() > width || img.Rows() > height {
+		// check which limit is hit first
+		if float64(img.Cols()) / float64(width) > float64(img.Rows()) / float64(height) {
+			// width limit is hit first
+			height = int(float64(img.Rows()) / float64(img.Cols()) * float64(width))
+		} else {
+			// height limit is hit first
+			width = int(float64(img.Cols()) / float64(img.Rows()) * float64(height))
+		}
+	}
 
 	gocv.Resize(img, &img, image.Point{X: width, Y: height}, 0, 0, gocv.InterpolationDefault)
 
