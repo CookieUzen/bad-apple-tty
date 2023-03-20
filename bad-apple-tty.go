@@ -20,6 +20,7 @@ var fps int
 var mode string
 var args []string
 var threshold int
+var skipFrame bool
 var terminalWidth int
 var terminalHeight int
 var framesToSkip int
@@ -35,6 +36,7 @@ func init() {
 	flag.IntVar(&fps, "f", 30, "fps to run at")
 	flag.StringVar(&mode, "m", "truecolor", "mode to run in (tty, tty_subsample, unicode, truecolor)")
 	flag.IntVar(&threshold, "t", 128, "threshold for quantization")
+	flag.BoolVar(&skipFrame, "s", true, "skip frames if we're running too slow")
 
 	flag.Parse()
 
@@ -107,7 +109,7 @@ func videoMode (fileName string) {
 	// Loop through the video
 	for {
 		// Skip frames if we're running too slow
-		if framesToSkip > 0 {
+		if skipFrame && framesToSkip > 0 {
 			video.Grab(framesToSkip)
 		}
 
@@ -138,7 +140,7 @@ func videoMode (fileName string) {
 		// Sleep for the remainder of the frame
 		if elapsed < interval {
 			time.Sleep(interval - elapsed)
-		} else {
+		} else if skipFrame {
 			// We're running too slow, skip frames
 			framesToSkip = fps - int(time.Second / elapsed)
 			fmt.Println("skipping " + strconv.Itoa(framesToSkip) + " frames")
