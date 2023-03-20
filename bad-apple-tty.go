@@ -16,7 +16,7 @@ import (
 )
 
 // For parsing command line arguments
-var fps int
+var fps float64
 var mode string
 var args []string
 var threshold int
@@ -32,7 +32,7 @@ func init() {
     }
 
 	// Parse the command line arguments
-	flag.IntVar(&fps, "f", 30, "fps to run at")
+	flag.Float64Var(&fps, "f", -1, "fps to run at, -1 for video fps")
 	flag.StringVar(&mode, "m", "truecolor", "mode to run in (tty, tty_subsample, unicode, truecolor)")
 	flag.IntVar(&threshold, "t", 128, "threshold for quantization")
 	flag.BoolVar(&skipFrame, "s", true, "skip frames if we're running too slow")
@@ -40,15 +40,6 @@ func init() {
 	flag.Parse()
 
 	args = flag.Args()
-}
-
-func main() {
-	// Sanity check the arguments
-	if len(args) < 1 {
-		fmt.Println("Wrong number of arguments")
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	// In case of a ^C, cleanup
 	c := make(chan os.Signal, 1)
@@ -66,6 +57,29 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+}
+
+func main() {
+	// Sanity check the arguments
+	if len(args) < 1 {
+		fmt.Println("Wrong number of arguments")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// Read the video and get the fps
+	if fps == -1 {
+		// Open the video
+		video, err := gocv.VideoCaptureFile(args[0])
+		if err != nil {
+			fmt.Println("Error opening video")
+			os.Exit(1)
+		}
+		defer video.Close()
+
+		// Get the fps
+		fps = video.Get(gocv.VideoCaptureFPS)
+	}
 
 	// Clear the screen
 	fmt.Print("\033[2J")
