@@ -22,6 +22,7 @@ var args []string
 var threshold int
 var terminalWidth int
 var terminalHeight int
+var framesToSkip int
 
 func init() {
     flag.Usage = func() {
@@ -105,6 +106,11 @@ func videoMode (fileName string) {
 
 	// Loop through the video
 	for {
+		// Skip frames if we're running too slow
+		if framesToSkip > 0 {
+			video.Grab(framesToSkip)
+		}
+
 		// Start the timer
 		start := time.Now()
 
@@ -132,6 +138,11 @@ func videoMode (fileName string) {
 		// Sleep for the remainder of the frame
 		if elapsed < interval {
 			time.Sleep(interval - elapsed)
+		} else {
+			// We're running too slow, skip frames
+			framesToSkip = fps - int(time.Second / elapsed)
+			fmt.Println("skipping " + strconv.Itoa(framesToSkip) + " frames")
+			continue 
 		}
 
 		elapsed = time.Since(start)
