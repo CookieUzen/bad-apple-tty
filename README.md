@@ -28,12 +28,12 @@ go build .
 Else, run the docker container like so:
 
 ```bash
-docker run -v $(pwd):$(pwd) -w $(pwd) -it ghcr.io/CookieUzen/bad-apple-tty /bad-apple-tty
+docker run -v $(pwd):$(pwd) -w $(pwd) -it ghcr.io/cookieuzen/bad-apple-tty /bad-apple-tty
 ```
 
 Or put it in an alias:
 
 ```bash
-alias bad-apple-tty="docker run -v $(pwd):$(pwd) -w $(pwd) -it ghcr.io/CookieUzen/bad-apple-tty /bad-apple-tty"
+alias bad-apple-tty="docker run -v $(pwd):$(pwd) -w $(pwd) -it ghcr.io/cookieuzen/bad-apple-tty /bad-apple-tty"
 ```
 
