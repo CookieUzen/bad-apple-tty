@@ -14,6 +14,11 @@ A program that renders a video in the terminal using gocv and ansi codes.
 - unicode: using black and white + half blocks for 2 pixels per character (this runs in tty)
 - truecolor: unicode + true color 
 
+# Dev
+
+Dev dependencies can be installed with `devbox`.
+Install `devbox` with your package manager of choice, then run `devbox shell` to drop into a dev environment.
+
 ## Install
 
 This program relies on the [gocv library](https://gocv.io).
